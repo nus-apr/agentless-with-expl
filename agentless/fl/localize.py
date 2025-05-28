@@ -579,6 +579,7 @@ def main():
         default="gpt-4o-2024-05-13",
         choices=[
             "gpt-4o-2024-05-13",
+            "gpt-4o-2024-11-20",
             "deepseek-coder",
             "gpt-4o-mini-2024-07-18",
             "claude-3-5-sonnet-20241022",

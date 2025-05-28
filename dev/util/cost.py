@@ -34,14 +34,10 @@ def cost(fp):
 
         total += 1
 
-    cost = sum_prompt * 5 / 1000000 + sum_completion * 15 / 1000000
+    cost = sum_prompt * 2.5 / 1000000 + sum_completion * 10 / 1000000
     tokens = sum_prompt + sum_completion
 
-    print(f"Total cost: {cost = }")
-    print(f"Avg cost: {cost / total}")
-
-    print(f"Total tokens: {tokens = }")
-    print(f"Avg tokens: {tokens / total}")
+    print(cost)
 
 
 def embedding_cost(fp):
