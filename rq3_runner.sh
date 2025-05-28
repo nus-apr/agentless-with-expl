@@ -67,3 +67,5 @@ for bugname in $(cat $BUG_LIST_FILE); do
     
     rm -rf playground/*
 done
+
+python organize_results.py --expr_dir $SAVEDIR
