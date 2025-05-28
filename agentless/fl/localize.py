@@ -100,6 +100,7 @@ def localize_irrelevant_instance(
 def localize_instance(
     bug, args, swe_bench_data, start_file_locs, existing_instance_ids, write_lock=None
 ):
+    assert args.expl_file is not None
     instance_id = bug["instance_id"]
     log_file = os.path.join(
         args.output_folder, "localization_logs", f"{instance_id}.log"
@@ -123,6 +124,10 @@ def localize_instance(
 
     bench_data = [x for x in swe_bench_data if x["instance_id"] == instance_id][0]
     problem_statement = bench_data["problem_statement"]
+    with open(args.expl_file) as f:
+        expl_data = json.load(f)
+        explanation = expl_data[bug['instance_id']]
+    problem_statement += f"\n\nIn addition, a trustworthy process has provide the following explanation for the bug:\n\n{explanation}"
 
     filter_none_python(structure)  # some basic filtering steps
     filter_out_test_files(structure)
@@ -591,6 +596,11 @@ def main():
         default="princeton-nlp/SWE-bench_Lite",
         choices=["princeton-nlp/SWE-bench_Lite", "princeton-nlp/SWE-bench_Verified"],
         help="Current supported dataset for evaluation",
+    )
+    parser.add_argument(
+        "--expl_file",
+        type=str,
+        default=None,
     )
 
     args = parser.parse_args()

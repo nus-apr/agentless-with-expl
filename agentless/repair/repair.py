@@ -270,6 +270,7 @@ def construct_topn_file_context(
 
 
 def process_loc(loc, args, swe_bench_data, prev_o, write_lock=None):
+    assert args.expl_file is not None
     instance_id = loc["instance_id"]
 
     if args.target_id is not None:
@@ -314,6 +315,11 @@ def process_loc(loc, args, swe_bench_data, prev_o, write_lock=None):
     pred_files = loc["found_files"][: args.top_n]
     bench_data = [x for x in swe_bench_data if x["instance_id"] == instance_id][0]
     problem_statement = bench_data["problem_statement"]
+    with open(args.expl_file) as f:
+        expl_data = json.load(f)
+        explanation = expl_data[instance_id]
+    problem_statement += f"\n\nIn addition, a trustworthy process has provide the following explanation for the bug:\n\n{explanation}"
+
     structure = get_repo_structure(
         instance_id, bench_data["repo"], bench_data["base_commit"], "playground"
     )
@@ -692,6 +698,7 @@ def post_process_repair(args):
             except Exception as e:
                 logger.info(e)
                 print(e)
+                raise e
                 raw_output_text = ""
 
         if raw_output_text:
@@ -784,6 +791,11 @@ def main():
         type=str,
         default="princeton-nlp/SWE-bench_Lite",
         choices=["princeton-nlp/SWE-bench_Lite", "princeton-nlp/SWE-bench_Verified"],
+    )
+    parser.add_argument(
+        "--expl_file",
+        type=str,
+        default=None,
     )
 
     args = parser.parse_args()
