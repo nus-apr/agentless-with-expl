@@ -1,23 +1,47 @@
 import json
 from pathlib import Path
+from uuid import uuid4
+import time
 
 from natsort import natsorted
 from tqdm import tqdm
+import multiprocessing
 
+from swebench.harness.run_evaluation import main as run_evaluation
 
-def main(predictions_dir, run_id: str) -> None:
+def main(predictions_dir, run_id: str, workers=1) -> None:
     prediction_files = natsorted(Path(predictions_dir).glob("all_preds.jsonl"))
     for idx, prediction_file in tqdm(
         enumerate(prediction_files),
         desc="Evaluating prediction files",
         total=len(prediction_files),
     ):
-        run_swe_bench_eval_official(f"{run_id}-{idx}", str(prediction_file.resolve()))
+        run_swe_bench_eval_official(run_id, str(prediction_file.resolve()), workers=workers)
 
+def _task_function(run_id, p_idx, pred):
+    swe_temp_input_file = f"/tmp/temp_{uuid4()}.json"
+    instance_id = pred["instance_id"]
+    indiv_run_id = f"{run_id}--{instance_id}--{p_idx}"
+    with open(swe_temp_input_file, "w") as f:
+        json.dump([pred], f)
+    time.sleep(0.5)
+    print(f"Starting {indiv_run_id}")
 
-def run_swe_bench_eval_official(run_id: str, swe_input_file: str):
-    from swebench.harness.run_evaluation import main as run_evaluation
+    run_evaluation(
+        "/home/sungmin/ACR-setup/Agentless/local_swebench_verified.json",
+        "test",
+        [instance_id],
+        swe_temp_input_file,
+        1,
+        force_rebuild=False,
+        cache_level="env",
+        clean=False,
+        open_file_limit=4096,
+        run_id=indiv_run_id,
+        timeout=600,
+    )
 
+def run_swe_bench_eval_official(run_id: str, swe_input_file: str, workers=1):
     try:
         predictions = []
         with open(swe_input_file) as f:
@@ -27,25 +51,19 @@ def run_swe_bench_eval_official(run_id: str, swe_input_file: str):
         print("Failed to read json")
         return None, None
 
-    swe_temp_input_file = "temp.json"
-    for p_idx, pred in enumerate(predictions):
-        with open(swe_temp_input_file, "w") as f:
-            json.dump([pred], f)
+    tasks = [
+        (run_id, p_idx, pred)
+        for p_idx, pred in enumerate(predictions)
+    ]
 
-        print(pred["instance_id"])
-        run_evaluation(
-            "princeton-nlp/SWE-bench",
-            "test",
-            [pred["instance_id"]],
-            swe_temp_input_file,
-            1,
-            force_rebuild=False,
-            cache_level="env",
-            clean=False,
-            open_file_limit=4096,
-            run_id=f"{run_id}-{p_idx}",
-            timeout=1800,
-        )
+    with multiprocessing.Pool(processes=workers) as pool:
+        results = list(tqdm(
+            pool.starmap(_task_function, tasks),
+            total=len(tasks),
+            desc="Evaluating prediction files",
+        ))
+
+    
 
 
 if __name__ == "__main__":
@@ -64,5 +82,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--run_id", type=str, help="Run ID for the evaluation.", required=True
     )
+    parser.add_argument(
+        "--workers", type=int, help="Run ID for the evaluation.", required=True
+    )
     args = parser.parse_args()
-    main(args.predictions_dir, args.run_id)
+    main(args.predictions_dir, args.run_id, workers=args.workers)

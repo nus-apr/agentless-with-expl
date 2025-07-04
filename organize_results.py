@@ -11,6 +11,7 @@ def get_patch_from_file(fpath):
         patch_info = json.load(f)
     for key in ["raw_model_patch", "original_file_content", "edited_files", "new_file_content"]:
         del patch_info[key]
+    patch_info["source_file"] = fpath
     return patch_info
 
 if __name__ == '__main__':
